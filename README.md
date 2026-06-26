@@ -74,9 +74,6 @@ https://github.com/user-attachments/assets/4c3eead0-2c5d-4415-952f-c71fd3cd81dc
 
 
 
-
-
-
 ## Future Improvements
 
 * In-App Chat
@@ -87,8 +84,14 @@ https://github.com/user-attachments/assets/4c3eead0-2c5d-4415-952f-c71fd3cd81dc
 * Email Notifications
 
 
+
 ## Author
 
 Furqan Khan
 Artificial Intelligence Student
+
+
+[SMIU Carpool Matchmaker Project Report.docx](https://github.com/user-attachments/files/29376660/SMIU.Carpool.Matchmaker.Project.Report.docx)
+
+[SMIU Carpool Matchmaker Presentation.pptx](https://github.com/user-attachments/files/29376665/SMIU.Carpool.Matchmaker.Presentation.pptx)
 
