@@ -1,7 +1,47 @@
-# SMIU-Carpool-Matchmaker
-A WinForms-based ride-sharing desktop application developed using C#, .NET 8, SQLite, and Object-Oriented Programming concepts.
+# SMIU Carpool Matchmaker
 
+## Overview
 
+SMIU Carpool Matchmaker is a Windows Forms desktop application designed to help students share rides efficiently.
+
+The application allows Riders to post rides and Passengers to search and book available rides through a user-friendly interface.
+
+## Features
+
+* User Registration
+* Secure Login System
+* Rider and Passenger Roles
+* Ride Posting
+* Ride Booking
+* Ride Management
+* SQLite Database Storage
+* Dashboard Analytics
+* Input Validation
+
+## Technologies Used
+
+* C#
+* .NET 8
+* Windows Forms (WinForms)
+* SQLite
+* Object-Oriented Programming (OOP)
+
+## OOP Concepts
+
+* Encapsulation
+* Inheritance
+* Polymorphism
+* Abstraction
+
+## Database Design
+
+The application uses SQLite with:
+
+* Users Table
+* Rides Table
+* Bookings Table
+
+## Screenshots
 
 **Login**
 
@@ -24,9 +64,25 @@ A WinForms-based ride-sharing desktop application developed using C#, .NET 8, SQ
 
 <img width="560" height="403" alt="image" src="https://github.com/user-attachments/assets/e4b9f987-7988-4f84-8e24-bfd3eabed1d6" />
 
+## Demo Video
+
+
+Uploading 12-29-18.mp4…
 
 
 
+## Future Improvements
+
+* In-App Chat
+* Route Matching
+* Map Integration
+* Ride History
+* Dark Mode
+* Email Notifications
 
 
-Added Project Screenshots
+## Author
+
+Furqan Khan
+Artificial Intelligence Student
+
