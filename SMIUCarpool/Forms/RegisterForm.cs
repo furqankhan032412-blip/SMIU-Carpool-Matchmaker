@@ -1,0 +1,132 @@
+using SMIUCarpool.Data;
+using SMIUCarpool.Helpers;
+
+namespace SMIUCarpool.Forms;
+
+public class RegisterForm : Form
+{
+    private readonly TextBox _txtName = new();
+    private readonly TextBox _txtEmail = new();
+    private readonly TextBox _txtPhone = new();
+    private readonly TextBox _txtPassword = new();
+    private readonly ComboBox _cmbRole = new();
+    private readonly ComboBox _cmbVehicle = new();
+    private readonly Label _lblError = new();
+
+    public RegisterForm()
+    {
+        AppTheme.PrepareForm(this, "Create Account");
+        StartPosition = FormStartPosition.CenterParent;
+        MinimumSize = new Size(560, 500);
+        BuildLayout();
+    }
+
+    private void BuildLayout()
+    {
+        TableLayoutPanel layout = new()
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(28),
+            ColumnCount = 2
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
+
+        _cmbRole.Items.AddRange(new object[] { "Rider", "Passenger" });
+        _cmbRole.SelectedIndex = 0;
+        _cmbVehicle.Items.AddRange(new object[] { "Car", "Bike" });
+        _cmbVehicle.SelectedIndex = 0;
+        _cmbRole.SelectedIndexChanged += (_, _) => _cmbVehicle.Enabled = _cmbRole.Text == "Rider";
+
+        foreach (TextBox textBox in new[] { _txtName, _txtEmail, _txtPhone, _txtPassword })
+        {
+            AppTheme.StyleTextBox(textBox);
+        }
+        AppTheme.StyleComboBox(_cmbRole);
+        AppTheme.StyleComboBox(_cmbVehicle);
+        _txtPassword.UseSystemPasswordChar = true;
+        _lblError.ForeColor = AppTheme.Danger;
+        _lblError.AutoSize = true;
+
+        Button btnRegister = new() { Text = "Register", Width = 120 };
+        AppTheme.StylePrimaryButton(btnRegister);
+        btnRegister.Click += BtnRegister_Click;
+
+        layout.Controls.Add(UiHelpers.Title("Create Account"), 0, 0);
+        layout.SetColumnSpan(layout.Controls[^1], 2);
+        layout.Controls.Add(UiHelpers.Muted("Register as a rider or passenger."), 0, 1);
+        layout.SetColumnSpan(layout.Controls[^1], 2);
+        AddRow(layout, 2, "Full Name", _txtName);
+        AddRow(layout, 3, "Email", _txtEmail);
+        AddRow(layout, 4, "Phone", _txtPhone);
+        AddRow(layout, 5, "Password", _txtPassword);
+        AddRow(layout, 6, "Role", _cmbRole);
+        AddRow(layout, 7, "Vehicle", _cmbVehicle);
+        layout.Controls.Add(_lblError, 1, 8);
+        layout.Controls.Add(btnRegister, 1, 9);
+        Controls.Add(layout);
+    }
+
+    private static void AddRow(TableLayoutPanel layout, int row, string label, Control control)
+    {
+        Label labelControl = new() { Text = label, AutoSize = true, Margin = new Padding(0, 8, 0, 0) };
+        control.Margin = new Padding(0, 5, 0, 4);
+        layout.Controls.Add(labelControl, 0, row);
+        layout.Controls.Add(control, 1, row);
+    }
+
+    private void BtnRegister_Click(object? sender, EventArgs e)
+    {
+        _lblError.Text = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_txtName.Text) ||
+            string.IsNullOrWhiteSpace(_txtEmail.Text) ||
+            string.IsNullOrWhiteSpace(_txtPhone.Text) ||
+            string.IsNullOrWhiteSpace(_txtPassword.Text))
+        {
+            _lblError.Text = "Please fill all fields.";
+            return;
+        }
+
+        if (!ValidationHelper.IsValidEmail(_txtEmail.Text.Trim()))
+        {
+            _lblError.Text = "Enter a valid email.";
+            return;
+        }
+
+        if (!ValidationHelper.IsValidPhone(_txtPhone.Text.Trim()))
+        {
+            _lblError.Text = "Phone must start with 03 and be 11 digits.";
+            return;
+        }
+
+        if (_txtPassword.Text.Length < 6)
+        {
+            _lblError.Text = "Password must be at least 6 characters.";
+            return;
+        }
+
+        if (UserRepository.EmailExists(_txtEmail.Text.Trim()))
+        {
+            _lblError.Text = "This email is already registered.";
+            return;
+        }
+
+        bool saved = UserRepository.CreateUser(
+            _txtName.Text.Trim(),
+            _txtEmail.Text.Trim(),
+            _txtPhone.Text.Trim(),
+            _cmbRole.Text,
+            _cmbRole.Text == "Rider" ? _cmbVehicle.Text : null,
+            _txtPassword.Text);
+
+        if (!saved)
+        {
+            _lblError.Text = "Account could not be saved.";
+            return;
+        }
+
+        MessageBox.Show("Account created. You can login now.");
+        Close();
+    }
+}

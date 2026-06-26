@@ -1,0 +1,321 @@
+using SMIUCarpool.Data;
+using SMIUCarpool.Helpers;
+using SMIUCarpool.Models;
+
+namespace SMIUCarpool.Forms;
+
+public class DashboardForm : Form
+{
+    private readonly DataGridView _gridRides = new()
+    {
+        Dock = DockStyle.Fill,
+        ReadOnly = true,
+        AllowUserToAddRows = false,
+        AllowUserToDeleteRows = false,
+        AutoGenerateColumns = false
+    };
+    private readonly ComboBox _cmbVehicle = new();
+    private readonly ComboBox _cmbStart = new();
+    private readonly TextBox _txtSearch = new();
+    private readonly Label _lblWelcome = new() { AutoSize = true };
+    private readonly Label _lblCount = new() { AutoSize = true };
+    private readonly Label _lblTotal = new() { AutoSize = true };
+    private readonly Label _lblCars = new() { AutoSize = true };
+    private readonly Label _lblBikes = new() { AutoSize = true };
+    private readonly Label _lblSeats = new() { AutoSize = true };
+    private readonly Button _btnPostRide = new() { Text = "Post Ride" };
+    private readonly Button _btnMyRides = new() { Text = "My Rides" };
+    private readonly Button _btnMyBookings = new() { Text = "My Bookings" };
+
+    public DashboardForm()
+    {
+        AppTheme.PrepareForm(this, "Dashboard");
+        MinimumSize = new Size(1080, 700);
+        BuildLayout();
+    }
+
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        LoadCurrentUser();
+        LoadFilters();
+        LoadRides();
+    }
+
+    private void BuildLayout()
+    {
+        Controls.Add(CreateContentPanel());
+        Controls.Add(CreateMenuPanel());
+        Controls.Add(UiHelpers.Header(AppTheme.AppName, "Find a campus ride or manage your own posted rides."));
+    }
+
+    private Panel CreateMenuPanel()
+    {
+        Panel menu = new()
+        {
+            Dock = DockStyle.Left,
+            Width = 205,
+            BackColor = Color.FromArgb(232, 238, 246),
+            Padding = new Padding(18, 22, 18, 18)
+        };
+
+        Button btnRefresh = new() { Text = "Refresh" };
+        Button btnLogout = new() { Text = "Logout" };
+        AppTheme.StyleMenuButton(btnRefresh);
+        AppTheme.StyleMenuButton(_btnPostRide, true);
+        AppTheme.StyleMenuButton(_btnMyRides);
+        AppTheme.StyleMenuButton(_btnMyBookings);
+        AppTheme.StyleMenuDangerButton(btnLogout);
+
+        FlowLayoutPanel menuItems = new()
+        {
+            Dock = DockStyle.Top,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            AutoSize = true
+        };
+
+        foreach (Button button in new[] { _btnPostRide, _btnMyRides, _btnMyBookings, btnRefresh, btnLogout })
+        {
+            button.Width = 168;
+            button.Margin = new Padding(0, 0, 0, 12);
+            menuItems.Controls.Add(button);
+        }
+
+        _btnPostRide.Click += (_, _) =>
+        {
+            using PostRideForm form = new();
+            if (form.ShowDialog() == DialogResult.OK)
+            {
+                LoadFilters();
+                LoadRides();
+            }
+        };
+        _btnMyRides.Click += (_, _) => new MyRidesForm().ShowDialog();
+        _btnMyBookings.Click += (_, _) => new MyBookingsForm().ShowDialog();
+        btnRefresh.Click += (_, _) =>
+        {
+            DatabaseSeeder.SeedData();
+            LoadFilters();
+            LoadRides();
+        };
+        btnLogout.Click += (_, _) =>
+        {
+            SessionManager.Logout();
+            Close();
+        };
+
+        menu.Controls.Add(menuItems);
+        return menu;
+    }
+
+    private Panel CreateContentPanel()
+    {
+        Panel content = new() { Dock = DockStyle.Fill, Padding = new Padding(22) };
+
+        Panel topBar = new() { Dock = DockStyle.Top, Height = 56, BackColor = AppTheme.Background };
+        _lblWelcome.Font = AppTheme.HeadingFont;
+        _lblWelcome.ForeColor = AppTheme.Text;
+        _lblWelcome.Location = new Point(0, 0);
+        _lblCount.Font = AppTheme.SmallFont;
+        _lblCount.ForeColor = AppTheme.MutedText;
+        _lblCount.Location = new Point(0, 28);
+        topBar.Controls.Add(_lblWelcome);
+        topBar.Controls.Add(_lblCount);
+
+        FlowLayoutPanel stats = new()
+        {
+            Dock = DockStyle.Top,
+            Height = 86,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = AppTheme.Background
+        };
+        stats.Controls.Add(CreateStatCard("Active Rides", _lblTotal));
+        stats.Controls.Add(CreateStatCard("Car Rides", _lblCars));
+        stats.Controls.Add(CreateStatCard("Bike Rides", _lblBikes));
+        stats.Controls.Add(CreateStatCard("Seats Left", _lblSeats));
+
+        Panel filters = CreateFilterPanel();
+
+        Panel tablePanel = new()
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(14),
+            BackColor = AppTheme.Panel
+        };
+
+        Button btnOpen = new() { Text = "Open Selected Ride", Dock = DockStyle.Bottom, Height = 42 };
+        AppTheme.StylePrimaryButton(btnOpen);
+        btnOpen.Click += (_, _) => OpenSelectedRide();
+
+        AppTheme.StyleGrid(_gridRides);
+        _gridRides.CellDoubleClick += (_, _) => OpenSelectedRide();
+        AddRideColumns();
+
+        tablePanel.Controls.Add(_gridRides);
+        tablePanel.Controls.Add(btnOpen);
+        content.Controls.Add(tablePanel);
+        content.Controls.Add(filters);
+        content.Controls.Add(stats);
+        content.Controls.Add(topBar);
+        return content;
+    }
+
+    private static Panel CreateStatCard(string caption, Label valueLabel)
+    {
+        Panel card = new()
+        {
+            Width = 145,
+            Height = 70,
+            BackColor = AppTheme.Panel,
+            Padding = new Padding(14, 10, 14, 8),
+            Margin = new Padding(0, 0, 14, 12)
+        };
+
+        valueLabel.Font = new Font("Segoe UI", 17, FontStyle.Bold);
+        valueLabel.ForeColor = AppTheme.PrimaryDark;
+        valueLabel.Location = new Point(12, 8);
+        valueLabel.Text = "0";
+
+        Label label = new()
+        {
+            Text = caption,
+            Font = AppTheme.SmallFont,
+            ForeColor = AppTheme.MutedText,
+            AutoSize = true,
+            Location = new Point(14, 42)
+        };
+
+        card.Controls.Add(valueLabel);
+        card.Controls.Add(label);
+        return card;
+    }
+
+    private Panel CreateFilterPanel()
+    {
+        Panel panel = new()
+        {
+            Dock = DockStyle.Top,
+            Height = 76,
+            Padding = new Padding(14, 10, 14, 10),
+            BackColor = AppTheme.Panel
+        };
+
+        Label vehicleLabel = new() { Text = "Vehicle", AutoSize = true, Location = new Point(14, 10) };
+        Label startLabel = new() { Text = "Start Area", AutoSize = true, Location = new Point(160, 10) };
+        Label searchLabel = new() { Text = "Search", AutoSize = true, Location = new Point(338, 10) };
+
+        _cmbVehicle.Location = new Point(14, 32);
+        _cmbVehicle.Width = 130;
+        _cmbStart.Location = new Point(160, 32);
+        _cmbStart.Width = 160;
+        _txtSearch.Location = new Point(338, 32);
+        _txtSearch.Width = 230;
+        _txtSearch.PlaceholderText = "route, rider, vehicle";
+
+        Button btnClear = new() { Text = "Clear", Width = 90, Location = new Point(586, 30) };
+        AppTheme.StyleSecondaryButton(btnClear);
+
+        _cmbVehicle.SelectedIndexChanged += (_, _) => LoadRides();
+        _cmbStart.SelectedIndexChanged += (_, _) => LoadRides();
+        _txtSearch.TextChanged += (_, _) => LoadRides();
+        btnClear.Click += (_, _) =>
+        {
+            _cmbVehicle.SelectedItem = "All";
+            _cmbStart.SelectedItem = "All";
+            _txtSearch.Clear();
+        };
+
+        panel.Controls.Add(vehicleLabel);
+        panel.Controls.Add(startLabel);
+        panel.Controls.Add(searchLabel);
+        panel.Controls.Add(_cmbVehicle);
+        panel.Controls.Add(_cmbStart);
+        panel.Controls.Add(_txtSearch);
+        panel.Controls.Add(btnClear);
+        return panel;
+    }
+
+    private void AddRideColumns()
+    {
+        _gridRides.Columns.Clear();
+        _gridRides.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Route", DataPropertyName = nameof(Ride.RouteText), FillWeight = 170 });
+        _gridRides.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Rider", DataPropertyName = nameof(Ride.RiderName), FillWeight = 95 });
+        _gridRides.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Vehicle", DataPropertyName = nameof(Ride.VehicleType), FillWeight = 70 });
+        _gridRides.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Departure", DataPropertyName = nameof(Ride.DepartureText), FillWeight = 95 });
+        _gridRides.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Seats", DataPropertyName = nameof(Ride.AvailableSeats), FillWeight = 55 });
+        _gridRides.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Price", DataPropertyName = nameof(Ride.PriceText), FillWeight = 65 });
+    }
+
+    private void LoadFilters()
+    {
+        string selectedVehicle = _cmbVehicle.SelectedItem?.ToString() ?? "All";
+        string selectedStart = _cmbStart.SelectedItem?.ToString() ?? "All";
+
+        _cmbVehicle.Items.Clear();
+        _cmbVehicle.Items.AddRange(new object[] { "All", "Car", "Bike" });
+        _cmbVehicle.SelectedItem = _cmbVehicle.Items.Contains(selectedVehicle) ? selectedVehicle : "All";
+
+        List<string> starts = RideRepository.GetAllActiveRides()
+            .Select(x => x.StartPoint)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x)
+            .ToList();
+        _cmbStart.Items.Clear();
+        _cmbStart.Items.Add("All");
+        _cmbStart.Items.AddRange(starts.Cast<object>().ToArray());
+        _cmbStart.SelectedItem = _cmbStart.Items.Contains(selectedStart) ? selectedStart : "All";
+    }
+
+    private void LoadCurrentUser()
+    {
+        User? user = SessionManager.CurrentUser;
+        if (user is null)
+        {
+            return;
+        }
+
+        _lblWelcome.Text = $"Logged in as {user.FullName} ({user.GetDashboardText()})";
+        bool isRider = user.Role == "Rider";
+        _btnPostRide.Visible = isRider;
+        _btnMyRides.Visible = isRider;
+        _btnMyBookings.Visible = !isRider;
+    }
+
+    private void LoadRides()
+    {
+        string vehicle = _cmbVehicle.SelectedItem?.ToString() ?? "All";
+        string start = _cmbStart.SelectedItem?.ToString() ?? "All";
+        List<Ride> rides = RideRepository.SearchActiveRides(vehicle, start, _txtSearch.Text);
+        List<Ride> allRides = RideRepository.GetAllActiveRides();
+
+        _gridRides.DataSource = null;
+        _gridRides.DataSource = rides;
+        _lblCount.Text = $"{rides.Count} ride(s) shown from {allRides.Count} active ride(s)";
+        _lblTotal.Text = allRides.Count.ToString();
+        _lblCars.Text = allRides.Count(x => x.VehicleType == "Car").ToString();
+        _lblBikes.Text = allRides.Count(x => x.VehicleType == "Bike").ToString();
+        _lblSeats.Text = allRides.Sum(x => x.AvailableSeats).ToString();
+    }
+
+    private Ride? GetSelectedRide()
+    {
+        return _gridRides.CurrentRow?.DataBoundItem as Ride;
+    }
+
+    private void OpenSelectedRide()
+    {
+        Ride? ride = GetSelectedRide();
+        if (ride is null)
+        {
+            MessageBox.Show("Please select a ride first.");
+            return;
+        }
+
+        using RideDetailForm form = new(ride.RideID);
+        form.ShowDialog();
+        LoadFilters();
+        LoadRides();
+    }
+}
